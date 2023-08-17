@@ -17,9 +17,29 @@ import (
 )
 
 func main() {
+	hostEnv := os.Getenv("HOST")
+	if hostEnv != "" {
+		baseUrl = hostEnv
+	}
+
 	var path string
-	flag.StringVar(&path, "p", "", "filepath")
+	var host string
+	var port string
+	var scheme string
+	var base string
+	flag.StringVar(&path, "f", "", "filepath")
+	flag.StringVar(&host, "h", "localhost", "host")
+	flag.StringVar(&port, "P", "443", "port")
+	flag.StringVar(&scheme, "s", "https", "scheme")
+	flag.StringVar(&base, "b", "", "api url base")
 	flag.Parse()
+
+	baseUrl = fmt.Sprintf("%s://%s:%s", scheme, host, port)
+	if base != "" {
+		baseUrl += "/" + base
+	}
+
+	log.Println(baseUrl)
 
 	stat, err := os.Stat(path)
 	if err != nil {
@@ -50,14 +70,14 @@ func main() {
 }
 
 var (
-	baseUrl = "http://localhost:8080/v1/files"
+	baseUrl = "http://localhost:8080"
 )
 
 const (
 	ChunkSize = 1024 * 1024 * 4
 
-	PathNewUpload = "uploads"
-	PathDownload  = "file"
+	PathNewUpload = "/v1/files/uploads"
+	PathDownload  = "/v1/files/file"
 )
 
 func fullPath(path string) string {
