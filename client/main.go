@@ -76,8 +76,8 @@ var (
 const (
 	ChunkSize = 1024 * 1024 * 4
 
-	PathNewUpload = "/v1/files/uploads"
-	PathDownload  = "/v1/files/file"
+	PathNewUpload = "v1/files/uploads"
+	PathDownload  = "v1/files/file"
 )
 
 func fullPath(path string) string {
