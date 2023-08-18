@@ -116,9 +116,14 @@ func (u UploadService) Download(req DownloadRequest, header http.Header, writer 
 		Filename: "",
 	}
 
+	stat, err := os.Stat(u.finalFilepath(req.UploadId))
+	if err != nil {
+		return err
+	}
+
 	filename := fileRecord.Filename
 	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	header.Set("Content-Length", fmt.Sprintf("%d", fileRecord.Size))
+	header.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
 
 	f, err := os.Open(u.finalFilepath(req.UploadId))
 	if err != nil {
@@ -127,6 +132,5 @@ func (u UploadService) Download(req DownloadRequest, header http.Header, writer 
 	io.Copy(writer, f)
 	defer f.Close()
 
-	
 	return nil
 }
