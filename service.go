@@ -1,10 +1,11 @@
 package upload
 
 import (
-	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,34 +13,50 @@ import (
 	"time"
 )
 
-type UploadService struct {
+var Dir = "upload"
+
+func InitDir() {
+	err := os.MkdirAll(Dir+"/chunks", os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func (u UploadService) newUploadId() string {
+type Service struct {
+	hash.Hash
+}
+
+func NewService(dep dependency) Service {
+	var s Service
+	s.Hash = dep.Hash()
+	return s
+}
+
+func (u Service) newUploadId() string {
 	return fmt.Sprintf("%d", time.Now().UnixMicro())
 }
 
-func (u UploadService) CreateUpload() CreateUploadResponse {
+func (u Service) CreateUpload() CreateUploadResponse {
 	return CreateUploadResponse{
 		UploadId: u.newUploadId(),
 	}
 }
 
-func (u UploadService) chunkFilepath(sum string) string {
-	return filepath.Join("./uploads/chunks", sum)
+func (u Service) chunkFilepath(sum string) string {
+	return filepath.Join(Dir+"/chunks", sum)
 }
 
-func (u UploadService) finalFilepath(uploadId string) string {
-	return filepath.Join("./uploads/", uploadId)
+func (u Service) finalFilepath(uploadId string) string {
+	return filepath.Join(Dir+"/", uploadId)
 }
 
 // UploadChunk upload each 4MB chunk of a file
-func (u UploadService) UploadChunk(req *http.Request) (*UploadChunkResponse, error) {
+func (u Service) UploadChunk(req *http.Request) (*UploadChunkResponse, error) {
 	d, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
 	}
-	sum := md5.Sum(d)
+	sum := u.Hash.Sum(d)
 	sumHex := hex.EncodeToString(sum[:])
 
 	chunk, err := os.Create(u.chunkFilepath(sumHex))
@@ -66,7 +83,7 @@ func (u UploadService) UploadChunk(req *http.Request) (*UploadChunkResponse, err
 }
 
 // ReassembleChunk put chunks together
-func (u UploadService) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunksResponse, error) {
+func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunksResponse, error) {
 	sort.Slice(req.Chunks, func(i, j int) bool {
 		return req.Chunks[i].ChunkNumber < req.Chunks[j].ChunkNumber
 	})
@@ -77,7 +94,7 @@ func (u UploadService) ReassembleChunk(req ReassembleChunksRequest) (*Reassemble
 	}
 	defer finalFile.Close()
 
-	hash := md5.New()
+	hash := u.Hash
 	for _, chunk := range req.Chunks {
 		chunkFilepath := u.chunkFilepath(chunk.Hash)
 
@@ -109,24 +126,31 @@ func (u UploadService) ReassembleChunk(req ReassembleChunksRequest) (*Reassemble
 	return resp, nil
 }
 
-func (u UploadService) Download(req DownloadRequest, header http.Header, writer io.Writer) error {
+func (u Service) Download(req DownloadRequest, header http.Header, writer http.ResponseWriter) error {
 	// Retrieve file by uploadId
 	fileRecord := File{
 		UploadId: req.UploadId,
 		Filename: "",
 	}
 
-	filename := fileRecord.Filename
-	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	header.Set("Content-Length", fmt.Sprintf("%d", fileRecord.Size))
-
-	f, err := os.Open(u.finalFilepath(req.UploadId))
+	name := u.finalFilepath(req.UploadId)
+	stat, err := os.Stat(name)
 	if err != nil {
 		return err
 	}
-	io.Copy(writer, f)
+
+	filename := fileRecord.Filename
+	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	header.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
+
+	f, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+
+	http.ServeContent(writer, req.Req, filename, stat.ModTime(), f)
+	//io.Copy(writer, f)
 	defer f.Close()
 
-	
 	return nil
 }

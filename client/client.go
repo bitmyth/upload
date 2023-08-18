@@ -1,10 +1,10 @@
-package main
+package client
 
 import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"flag"
+	"errors"
 	"fmt"
 	"github.com/bitmyth/upload"
 	"io"
@@ -16,79 +16,27 @@ import (
 	"strings"
 )
 
-func main() {
-	hostEnv := os.Getenv("HOST")
-	if hostEnv != "" {
-		baseUrl = hostEnv
-	}
-
-	var path string
-	var host string
-	var port string
-	var scheme string
-	var base string
-	flag.StringVar(&path, "f", "", "filepath")
-	flag.StringVar(&host, "h", "localhost", "host")
-	flag.StringVar(&port, "P", "443", "port")
-	flag.StringVar(&scheme, "s", "https", "scheme")
-	flag.StringVar(&base, "b", "", "api url base")
-	flag.Parse()
-
-	baseUrl = fmt.Sprintf("%s://%s:%s", scheme, host, port)
-	if base != "" {
-		baseUrl += "/" + base
-	}
-
-	log.Println(baseUrl)
-
-	stat, err := os.Stat(path)
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-
-	c := Client{
-		fileInfo: stat,
-		Filepath: path,
-	}
-
-	err = c.NewUpload()
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-
-	err = c.Upload()
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-
-	url := fmt.Sprintf("%s/%s%s", fullPath(PathDownload), c.UploadId, c.fileInfo.Name())
-	log.Println("URL:")
-	log.Println(url)
-}
-
 var (
-	baseUrl = "http://localhost:8080"
+	BaseUrl = "http://localhost:8080"
 )
 
 const (
 	ChunkSize = 1024 * 1024 * 4
 
-	PathNewUpload = "/v1/files/uploads"
-	PathDownload  = "/v1/files/file"
+	PathNewUpload = "uploads"
+	PathDownload  = "file"
 )
 
 func fullPath(path string) string {
-	return baseUrl + "/" + path
+	return BaseUrl + "/" + path
 }
 
 type Client struct {
-	UploadId string
-	Chunks   []upload.FileChunk
-	fileInfo os.FileInfo
-	Filepath string
+	Transport http.RoundTripper
+	UploadId  string
+	Chunks    []upload.FileChunk
+	FileInfo  os.FileInfo
+	Filepath  string
 }
 
 func (c *Client) NewUpload() error {
@@ -100,13 +48,19 @@ func (c *Client) NewUpload() error {
 	if err != nil {
 		return err
 	}
-	httpClient := client()
+	httpClient := c.client()
 	setCommonHeaders(req)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
+
+	if resp.StatusCode > 400 {
+		log.Println(resp.StatusCode)
+		return errors.New(resp.Status)
+	}
+
 	all, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -124,8 +78,13 @@ func (c *Client) NewUpload() error {
 	return nil
 }
 
+func (c *Client) DownloadLink() string {
+	url := fmt.Sprintf("%s/%s%s", fullPath(PathDownload), c.UploadId, c.FileInfo.Name())
+	return url
+}
+
 func (c *Client) Upload() error {
-	size := c.fileInfo.Size()
+	size := c.FileInfo.Size()
 
 	chunksCount := size/ChunkSize + 1
 
@@ -166,7 +125,7 @@ func min(i, j int) int {
 func (c *Client) UploadChunk(data []byte, chunkNumber int) error {
 	log.Println("Uploading chunk:", chunkNumber, " length:", len(data))
 
-	httpClient := client()
+	httpClient := c.client()
 
 	url := fullPath(filepath.Join(PathNewUpload, c.UploadId, strconv.Itoa(chunkNumber)))
 
@@ -201,14 +160,14 @@ func (c *Client) UploadChunk(data []byte, chunkNumber int) error {
 func (c *Client) ReassembleChunks() error {
 	log.Println("Reassemble chunks")
 
-	httpClient := client()
+	httpClient := c.client()
 
 	url := fullPath(filepath.Join(PathNewUpload, c.UploadId))
 
 	payload := upload.ReassembleChunksRequest{
 		UploadId: c.UploadId,
 		Chunks:   c.Chunks,
-		Filename: c.fileInfo.Name(),
+		Filename: c.FileInfo.Name(),
 	}
 
 	marshal, _ := json.Marshal(payload)
@@ -234,10 +193,16 @@ func (c *Client) ReassembleChunks() error {
 	return nil
 }
 
-func client() *http.Client {
-	tr := &http.Transport{
+func (c *Client) client() *http.Client {
+	var tr http.RoundTripper
+	tr = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
+
+	if c.Transport != nil {
+		tr = c.Transport
+	}
+
 	return &http.Client{Transport: tr}
 }
 

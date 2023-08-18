@@ -1,6 +1,9 @@
 package upload
 
-import "time"
+import (
+	"net/http"
+	"time"
+)
 
 type CreateUploadResponse struct {
 	UploadId string
@@ -29,6 +32,7 @@ type ReassembleChunksResponse struct {
 
 type DownloadRequest struct {
 	UploadId string
+	Req      *http.Request
 }
 
 type Chunk struct {
