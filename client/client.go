@@ -1,10 +1,9 @@
-package main
+package client
 
 import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"github.com/bitmyth/upload"
 	"io"
@@ -16,78 +15,25 @@ import (
 	"strings"
 )
 
-func main() {
-	hostEnv := os.Getenv("HOST")
-	if hostEnv != "" {
-		baseUrl = hostEnv
-	}
-
-	var path string
-	var host string
-	var port string
-	var scheme string
-	var base string
-	flag.StringVar(&path, "f", "", "filepath")
-	flag.StringVar(&host, "h", "localhost", "host")
-	flag.StringVar(&port, "P", "443", "port")
-	flag.StringVar(&scheme, "s", "https", "scheme")
-	flag.StringVar(&base, "b", "", "api url base")
-	flag.Parse()
-
-	baseUrl = fmt.Sprintf("%s://%s:%s", scheme, host, port)
-	if base != "" {
-		baseUrl += "/" + base
-	}
-
-	log.Println(baseUrl)
-
-	stat, err := os.Stat(path)
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-
-	c := Client{
-		fileInfo: stat,
-		Filepath: path,
-	}
-
-	err = c.NewUpload()
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-
-	err = c.Upload()
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-
-	url := fmt.Sprintf("%s/%s%s", fullPath(PathDownload), c.UploadId, c.fileInfo.Name())
-	log.Println("URL:")
-	log.Println(url)
-}
-
 var (
-	baseUrl = "http://localhost:8080"
+	BaseUrl = "http://localhost:8080"
 )
 
 const (
 	ChunkSize = 1024 * 1024 * 4
 
-	PathNewUpload = "v1/files/uploads"
-	PathDownload  = "v1/files/file"
+	PathNewUpload = "uploads"
+	PathDownload  = "file"
 )
 
 func fullPath(path string) string {
-	return baseUrl + "/" + path
+	return BaseUrl + "/" + path
 }
 
 type Client struct {
 	UploadId string
 	Chunks   []upload.FileChunk
-	fileInfo os.FileInfo
+	FileInfo os.FileInfo
 	Filepath string
 }
 
@@ -124,8 +70,13 @@ func (c *Client) NewUpload() error {
 	return nil
 }
 
+func (c *Client) DownloadLink() string {
+	url := fmt.Sprintf("%s/%s%s", fullPath(PathDownload), c.UploadId, c.FileInfo.Name())
+	return url
+}
+
 func (c *Client) Upload() error {
-	size := c.fileInfo.Size()
+	size := c.FileInfo.Size()
 
 	chunksCount := size/ChunkSize + 1
 
@@ -208,7 +159,7 @@ func (c *Client) ReassembleChunks() error {
 	payload := upload.ReassembleChunksRequest{
 		UploadId: c.UploadId,
 		Chunks:   c.Chunks,
-		Filename: c.fileInfo.Name(),
+		Filename: c.FileInfo.Name(),
 	}
 
 	marshal, _ := json.Marshal(payload)
