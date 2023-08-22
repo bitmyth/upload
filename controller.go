@@ -2,8 +2,17 @@ package upload
 
 import (
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
+	"os"
 )
+
+func init() {
+	err := os.MkdirAll("./uploads/chunks", os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 type FileController struct {
 	svc UploadService
