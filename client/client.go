@@ -200,6 +200,7 @@ func (c *Client) client() *http.Client {
 
 	if c.Transport != nil {
 		tr = c.Transport
+		log.Println("using custom http transport")
 	}
 
 	return &http.Client{Transport: tr}
