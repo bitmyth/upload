@@ -31,10 +31,11 @@ func fullPath(path string) string {
 }
 
 type Client struct {
-	UploadId string
-	Chunks   []upload.FileChunk
-	FileInfo os.FileInfo
-	Filepath string
+	Transport *http.Transport
+	UploadId  string
+	Chunks    []upload.FileChunk
+	FileInfo  os.FileInfo
+	Filepath  string
 }
 
 func (c *Client) NewUpload() error {
@@ -46,7 +47,7 @@ func (c *Client) NewUpload() error {
 	if err != nil {
 		return err
 	}
-	httpClient := client()
+	httpClient := c.client()
 	setCommonHeaders(req)
 
 	resp, err := httpClient.Do(req)
@@ -185,10 +186,15 @@ func (c *Client) ReassembleChunks() error {
 	return nil
 }
 
-func client() *http.Client {
+func (c *Client) client() *http.Client {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
+
+	if c.Transport != nil {
+		tr = c.Transport
+	}
+
 	return &http.Client{Transport: tr}
 }
 
