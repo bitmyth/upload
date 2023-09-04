@@ -118,7 +118,7 @@ func min(i, j int) int {
 func (c *Client) UploadChunk(data []byte, chunkNumber int) error {
 	log.Println("Uploading chunk:", chunkNumber, " length:", len(data))
 
-	httpClient := client()
+	httpClient := c.client()
 
 	url := fullPath(filepath.Join(PathNewUpload, c.UploadId, strconv.Itoa(chunkNumber)))
 
@@ -153,7 +153,7 @@ func (c *Client) UploadChunk(data []byte, chunkNumber int) error {
 func (c *Client) ReassembleChunks() error {
 	log.Println("Reassemble chunks")
 
-	httpClient := client()
+	httpClient := c.client()
 
 	url := fullPath(filepath.Join(PathNewUpload, c.UploadId))
 
