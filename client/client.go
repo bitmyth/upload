@@ -31,7 +31,7 @@ func fullPath(path string) string {
 }
 
 type Client struct {
-	Transport *http.Transport
+	Transport http.RoundTripper
 	UploadId  string
 	Chunks    []upload.FileChunk
 	FileInfo  os.FileInfo
@@ -187,7 +187,8 @@ func (c *Client) ReassembleChunks() error {
 }
 
 func (c *Client) client() *http.Client {
-	tr := &http.Transport{
+	var tr http.RoundTripper
+	tr = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
