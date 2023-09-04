@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,29 +13,38 @@ import (
 	"time"
 )
 
-type UploadService struct {
+var Dir = "upload"
+
+func InitDir() {
+	err := os.MkdirAll(Dir+"/chunks", os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func (u UploadService) newUploadId() string {
+type Service struct {
+}
+
+func (u Service) newUploadId() string {
 	return fmt.Sprintf("%d", time.Now().UnixMicro())
 }
 
-func (u UploadService) CreateUpload() CreateUploadResponse {
+func (u Service) CreateUpload() CreateUploadResponse {
 	return CreateUploadResponse{
 		UploadId: u.newUploadId(),
 	}
 }
 
-func (u UploadService) chunkFilepath(sum string) string {
-	return filepath.Join("./uploads/chunks", sum)
+func (u Service) chunkFilepath(sum string) string {
+	return filepath.Join(Dir+"/chunks", sum)
 }
 
-func (u UploadService) finalFilepath(uploadId string) string {
-	return filepath.Join("./uploads/", uploadId)
+func (u Service) finalFilepath(uploadId string) string {
+	return filepath.Join(Dir+"/", uploadId)
 }
 
 // UploadChunk upload each 4MB chunk of a file
-func (u UploadService) UploadChunk(req *http.Request) (*UploadChunkResponse, error) {
+func (u Service) UploadChunk(req *http.Request) (*UploadChunkResponse, error) {
 	d, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
@@ -66,7 +76,7 @@ func (u UploadService) UploadChunk(req *http.Request) (*UploadChunkResponse, err
 }
 
 // ReassembleChunk put chunks together
-func (u UploadService) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunksResponse, error) {
+func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunksResponse, error) {
 	sort.Slice(req.Chunks, func(i, j int) bool {
 		return req.Chunks[i].ChunkNumber < req.Chunks[j].ChunkNumber
 	})
@@ -109,7 +119,7 @@ func (u UploadService) ReassembleChunk(req ReassembleChunksRequest) (*Reassemble
 	return resp, nil
 }
 
-func (u UploadService) Download(req DownloadRequest, header http.Header, writer io.Writer) error {
+func (u Service) Download(req DownloadRequest, header http.Header, writer io.Writer) error {
 	// Retrieve file by uploadId
 	fileRecord := File{
 		UploadId: req.UploadId,

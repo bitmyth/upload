@@ -5,17 +5,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
-	"os"
 )
 
-func init() {
-	err := os.MkdirAll("./uploads/chunks", os.ModePerm)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func main() {
+	upload.InitDir()
+
 	r := gin.Default()
 
 	var fileController upload.FileController

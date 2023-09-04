@@ -15,7 +15,7 @@ func init() {
 }
 
 type FileController struct {
-	svc UploadService
+	svc Service
 }
 
 func (c *FileController) NewUpload(ctx *gin.Context) {
