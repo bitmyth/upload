@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/bitmyth/upload"
 	"io"
@@ -57,6 +58,7 @@ func (c *Client) NewUpload() error {
 
 	if resp.StatusCode > 400 {
 		log.Println(resp.StatusCode)
+		return errors.New(resp.Status)
 	}
 
 	all, err := io.ReadAll(resp.Body)
