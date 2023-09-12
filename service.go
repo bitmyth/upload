@@ -119,7 +119,7 @@ func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunks
 	return resp, nil
 }
 
-func (u Service) Download(req DownloadRequest, header http.Header, writer io.Writer) error {
+func (u Service) Download(req DownloadRequest, header http.Header, writer http.ResponseWriter) error {
 	// Retrieve file by uploadId
 	fileRecord := File{
 		UploadId: req.UploadId,
@@ -135,11 +135,19 @@ func (u Service) Download(req DownloadRequest, header http.Header, writer io.Wri
 	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	header.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
 
-	f, err := os.Open(u.finalFilepath(req.UploadId))
+	name := u.finalFilepath(req.UploadId)
+	info, err := os.Stat(name)
 	if err != nil {
 		return err
 	}
-	io.Copy(writer, f)
+
+	f, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+
+	http.ServeContent(writer, req.Req, filename, info.ModTime(), f)
+	//io.Copy(writer, f)
 	defer f.Close()
 
 	return nil

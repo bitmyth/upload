@@ -46,6 +46,7 @@ func (c *FileController) Reassemble(ctx *gin.Context) {
 func (c *FileController) Download(ctx *gin.Context) {
 	var req DownloadRequest
 	req.UploadId = ctx.Param("id")
+	req.Req = ctx.Request
 
 	err := c.svc.Download(req, ctx.Writer.Header(), ctx.Writer)
 	if err != nil {

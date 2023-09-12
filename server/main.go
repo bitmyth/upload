@@ -19,7 +19,7 @@ func main() {
 	r.POST("/uploads/:id", fileController.Reassemble)
 	r.GET("/file/:id", fileController.Download)
 
-	// Start the server on port 8080
+	// Start the server on port 9090
 	err := http.ListenAndServe(":9090", r)
 	if err != nil {
 		log.Fatal("Error starting server")
