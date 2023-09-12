@@ -126,7 +126,8 @@ func (u Service) Download(req DownloadRequest, header http.Header, writer http.R
 		Filename: "",
 	}
 
-	stat, err := os.Stat(u.finalFilepath(req.UploadId))
+	name := u.finalFilepath(req.UploadId)
+	stat, err := os.Stat(name)
 	if err != nil {
 		return err
 	}
@@ -135,18 +136,12 @@ func (u Service) Download(req DownloadRequest, header http.Header, writer http.R
 	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	header.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
 
-	name := u.finalFilepath(req.UploadId)
-	info, err := os.Stat(name)
-	if err != nil {
-		return err
-	}
-
 	f, err := os.Open(name)
 	if err != nil {
 		return err
 	}
 
-	http.ServeContent(writer, req.Req, filename, info.ModTime(), f)
+	http.ServeContent(writer, req.Req, filename, stat.ModTime(), f)
 	//io.Copy(writer, f)
 	defer f.Close()
 
