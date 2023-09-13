@@ -2,11 +2,22 @@ package upload
 
 import (
 	"github.com/gin-gonic/gin"
+	"hash"
 	"net/http"
 )
 
 type FileController struct {
 	svc Service
+}
+
+type dependency interface {
+	Hash() hash.Hash
+}
+
+func NewFileController(d dependency) FileController {
+	return FileController{
+		svc: NewService(d),
+	}
 }
 
 func (c *FileController) NewUpload(ctx *gin.Context) {

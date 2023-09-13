@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/bitmyth/upload"
+	"github.com/bitmyth/upload/registry"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
@@ -12,7 +13,8 @@ func main() {
 
 	r := gin.Default()
 
-	var fileController upload.FileController
+	var rg registry.Registry
+	fileController := upload.NewFileController(rg)
 
 	r.POST("/uploads", fileController.NewUpload)
 	r.POST("/uploads/:id/:chunk", fileController.UploadChunk)

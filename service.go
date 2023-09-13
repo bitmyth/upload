@@ -1,9 +1,9 @@
 package upload
 
 import (
-	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 	"log"
 	"net/http"
@@ -23,6 +23,13 @@ func InitDir() {
 }
 
 type Service struct {
+	hash.Hash
+}
+
+func NewService(dep dependency) Service {
+	var s Service
+	s.Hash = dep.Hash()
+	return s
 }
 
 func (u Service) newUploadId() string {
@@ -49,7 +56,7 @@ func (u Service) UploadChunk(req *http.Request) (*UploadChunkResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	sum := md5.Sum(d)
+	sum := u.Hash.Sum(d)
 	sumHex := hex.EncodeToString(sum[:])
 
 	chunk, err := os.Create(u.chunkFilepath(sumHex))
@@ -87,7 +94,7 @@ func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunks
 	}
 	defer finalFile.Close()
 
-	hash := md5.New()
+	hash := u.Hash
 	for _, chunk := range req.Chunks {
 		chunkFilepath := u.chunkFilepath(chunk.Hash)
 
