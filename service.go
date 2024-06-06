@@ -3,7 +3,6 @@ package upload
 import (
 	"encoding/hex"
 	"fmt"
-	"hash"
 	"io"
 	"log"
 	"net/http"
@@ -23,12 +22,12 @@ func InitDir() {
 }
 
 type Service struct {
-	hash.Hash
+	d dependency
 }
 
 func NewService(dep dependency) Service {
 	var s Service
-	s.Hash = dep.Hash()
+	s.d = dep
 	return s
 }
 
@@ -56,7 +55,7 @@ func (u Service) UploadChunk(req *http.Request) (*UploadChunkResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	sum := u.Hash.Sum(d)
+	sum := u.d.Hash().Sum(d)
 	sumHex := hex.EncodeToString(sum[:])
 
 	chunk, err := os.Create(u.chunkFilepath(sumHex))
@@ -94,7 +93,7 @@ func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunks
 	}
 	defer finalFile.Close()
 
-	fileHash := u.Hash
+	fileHash := u.d.Hash()
 	for _, chunk := range req.Chunks {
 		chunkFilepath := u.chunkFilepath(chunk.Hash)
 
