@@ -94,7 +94,7 @@ func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunks
 	}
 	defer finalFile.Close()
 
-	hash := u.Hash
+	fileHash := u.Hash
 	for _, chunk := range req.Chunks {
 		chunkFilepath := u.chunkFilepath(chunk.Hash)
 
@@ -103,7 +103,7 @@ func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunks
 			return nil, e
 		}
 
-		hash.Write(chunkData)
+		fileHash.Write(chunkData)
 
 		_, err = finalFile.Write(chunkData)
 		if err != nil {
@@ -111,10 +111,10 @@ func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunks
 		}
 
 		// Remove chunk data
-		os.RemoveAll(chunkFilepath)
+		_ = os.RemoveAll(chunkFilepath)
 	}
 
-	sum := hash.Sum(nil)
+	sum := fileHash.Sum(nil)
 
 	resp := &ReassembleChunksResponse{
 		Hash:     hex.EncodeToString(sum[:]),
@@ -128,10 +128,10 @@ func (u Service) ReassembleChunk(req ReassembleChunksRequest) (*ReassembleChunks
 
 func (u Service) Download(req DownloadRequest, header http.Header, writer http.ResponseWriter) error {
 	// Retrieve file by uploadId
-	fileRecord := File{
-		UploadId: req.UploadId,
-		Filename: "",
-	}
+	//fileRecord := File{
+	//	UploadId: req.UploadId,
+	//	Filename: "",
+	//}
 
 	name := u.finalFilepath(req.UploadId)
 	stat, err := os.Stat(name)
@@ -139,7 +139,7 @@ func (u Service) Download(req DownloadRequest, header http.Header, writer http.R
 		return err
 	}
 
-	filename := fileRecord.Filename
+	filename := stat.Name()
 	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	header.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
 
