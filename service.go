@@ -57,7 +57,7 @@ func (u Service) UploadChunk(req *http.Request) (*UploadChunkResponse, error) {
 	}
 	h := u.d.Hash()
 	h.Write(d)
-	sum := h.Sum(d)
+	sum := h.Sum(nil)
 	sumHex := hex.EncodeToString(sum[:])
 
 	chunk, err := os.Create(u.chunkFilepath(sumHex))
